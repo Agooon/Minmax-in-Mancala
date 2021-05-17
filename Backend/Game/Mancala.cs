@@ -12,6 +12,7 @@ namespace Backend.Game
     {
         public const string Human = "Human";
         public const string Ai = "  Ai ";
+        public const string Ai_AB = "Ai_AB";
     }
     public class Mancala
     {
@@ -23,8 +24,9 @@ namespace Backend.Game
         // Player 1 values
         private readonly string Player1;
         private readonly string Player2;
-        public int Player1Depth { get; set; } = 4;
-        public int Player2Depth { get; set; } = 10;
+        public int Player1Depth { get; set; } = 16;
+        public int Player2Depth { get; set; } = 16;
+        public int MoveNumber { get; set; } = 0;
 
 
         // Holes
@@ -55,6 +57,9 @@ namespace Backend.Game
         // gameMode = 1 - H vs H
         // gameMode = 2 - H vs Ai
         // gameMode = 3 - Ai vs Ai
+        // gameMode = 4 - H vs Ai_AB
+        // gameMode = 5 - Ai_AB vs Ai_AB
+        // gameMode = 6 - Ai_AB vs Ai
 
         // For deepCopy
         public Mancala(Mancala mancala)
@@ -86,6 +91,18 @@ namespace Backend.Game
                     Player1 = PlayerType.Ai;
                     Player2 = PlayerType.Ai;
                     break;
+                case 4:
+                    Player1 = PlayerType.Human;
+                    Player2 = PlayerType.Ai_AB;
+                    break;
+                case 5:
+                    Player1 = PlayerType.Ai_AB;
+                    Player2 = PlayerType.Ai_AB;
+                    break;
+                case 6:
+                    Player1 = PlayerType.Ai;
+                    Player2 = PlayerType.Ai_AB;
+                    break;
             }
 
             this.player1Turn = player1Turn;
@@ -93,20 +110,29 @@ namespace Backend.Game
 
         public void StartGame()
         {
-            firstMove = true;
+            firstMove = false;
+            bool emptyMove = false;
             while (true)
             {
-                Console.WriteLine(ShowGameState());
-                int playerMove = GetPlayerMove();
+                if (!emptyMove)
+                    Console.WriteLine(ShowGameState());
+                else
+                    Console.WriteLine("SKIP");
+                int playerMove = GetPlayerMove(emptyMove);
                 bool change = Move(playerMove);
+                player1Turn = !player1Turn;
                 if (change)
-                    player1Turn = !player1Turn;
+                    emptyMove = false;
+                else
+                    emptyMove = true;
                 if (CheckEnd())
                 {
+                    Console.WriteLine(ShowGameState());
+                    Console.WriteLine("ENDING");
                     Player1Well[0] += Player1Holes.Sum(x => x);
                     Player2Well[0] += Player2Holes.Sum(x => x);
-                    Player1Holes=Player1Holes.Select(x => 0).ToArray();
-                    Player2Holes=Player2Holes.Select(x => 0).ToArray();
+                    Player1Holes = Player1Holes.Select(x => 0).ToArray();
+                    Player2Holes = Player2Holes.Select(x => 0).ToArray();
                     Console.WriteLine(ShowGameState());
                     Console.WriteLine($"Player 1 scored {Player1Well[0]} points");
                     Console.WriteLine($"Player 2 scored {Player2Well[0]} points");
@@ -131,28 +157,46 @@ namespace Backend.Game
             }
         }
 
-        private int GetPlayerMove()
+        private int GetPlayerMove(bool emptyMove)
         {
+            if (emptyMove)
+                return -1;
             if (player1Turn)
             {
-                if (Player1 == "Human")
+                if (Player1 == PlayerType.Human)
                     return GetHumanMove();
-                else
+                else if (Player1 == PlayerType.Ai)
                 {
                     int aiMove = GetAiMove();
                     Console.WriteLine("Ai moved: " + aiMove);
                     return aiMove;
                 }
+                // Aplha-Beta
+                else
+                {
+                    int aiMove = GetAiMoveAB();
+
+                    Console.WriteLine("Ai_AB moved: " + aiMove);
+                    return aiMove;
+                }
             }
             else
             {
-                if (Player2 == "Human")
+                if (Player2 == PlayerType.Human)
                     return GetHumanMove();
+                else if (Player2 == PlayerType.Ai)
+                {
+                    int aiMove = GetAiMove();
+
+                    Console.WriteLine("Ai moved: " + aiMove);
+                    return aiMove;
+                }
+                // Aplha-Beta
                 else
                 {
-                    int aiMove= GetAiMove();
-                    
-                    Console.WriteLine("Ai moved: "+aiMove);
+                    int aiMove = GetAiMoveAB();
+
+                    Console.WriteLine("Ai_AB moved: " + aiMove);
                     return aiMove;
                 }
             }
@@ -168,14 +212,34 @@ namespace Backend.Game
             if (player1Turn)
             {
                 Minmax minmax = new Minmax(player1Turn, Player1Depth);
-                return minmax.MinmaxAlg(this, Player1Depth, true);
+                return minmax.MinmaxAlg(this, Player1Depth, true, false);
             }
             else
             {
                 Minmax minmax = new Minmax(player1Turn, Player2Depth);
-                return minmax.MinmaxAlg(this, Player2Depth, true);
+                return minmax.MinmaxAlg(this, Player2Depth, true, false);
             }
         }
+
+        private int GetAiMoveAB()
+        {
+            if (firstMove)
+            {
+                firstMove = false;
+                return new Random().Next(1, 7);
+            }
+            if (player1Turn)
+            {
+                Minmax minmax = new Minmax(player1Turn, Player1Depth);
+                return minmax.AplhaBeta(this, Player1Depth, true, false, int.MinValue, int.MaxValue);
+            }
+            else
+            {
+                Minmax minmax = new Minmax(player1Turn, Player2Depth);
+                return minmax.AplhaBeta(this, Player2Depth, true, false, int.MinValue, int.MaxValue);
+            }
+        }
+
 
         private int GetHumanMove()
         {
@@ -203,72 +267,74 @@ namespace Backend.Game
         // Returns true if the turn ends
         public bool Move(int playerMove)
         {
-            int[] actualHoles;
-            int[] actualWell;
-            int stones;
-            bool activePlayer = player1Turn;
-            bool currentPlayerHoles = player1Turn;
-            if (player1Turn)
-            {
-                actualHoles = Player1Holes;
-            }
-            else
-            {
-                actualHoles = Player2Holes;
-            }
-            stones = actualHoles[playerMove - 1];
-            actualHoles[playerMove - 1] = 0;
-            bool endOfSection = false;
-            int startingId = playerMove;
-
             bool change = true;
-            
-
-            while (stones > 0)
+            if (playerMove != -1)
             {
-                if (currentPlayerHoles)
+                int[] actualHoles;
+                int[] actualWell;
+                int stones;
+                bool activePlayer = player1Turn;
+                bool currentPlayerHoles = player1Turn;
+                if (player1Turn)
                 {
                     actualHoles = Player1Holes;
-                    actualWell = Player1Well;
                 }
                 else
                 {
                     actualHoles = Player2Holes;
-                    actualWell = Player2Well;
                 }
-                if (endOfSection)
-                    startingId = 0;
+                stones = actualHoles[playerMove - 1];
+                actualHoles[playerMove - 1] = 0;
+                bool endOfSection = false;
+                int startingId = playerMove;
 
-                // Until end of section
-                for (int i = startingId; i < HoleNumber; i++)
+
+
+                while (stones > 0)
                 {
-                    if (stones > 0)
+                    if (currentPlayerHoles)
                     {
-                        stones--;
-                        actualHoles[i]++;
-                        if (activePlayer == currentPlayerHoles && stones == 0 && actualHoles[i] == 1
-                            && GetEnemyHoles()[HoleNumber - 1 - i] != 0)
+                        actualHoles = Player1Holes;
+                        actualWell = Player1Well;
+                    }
+                    else
+                    {
+                        actualHoles = Player2Holes;
+                        actualWell = Player2Well;
+                    }
+                    if (endOfSection)
+                        startingId = 0;
+
+                    // Until end of section
+                    for (int i = startingId; i < HoleNumber; i++)
+                    {
+                        if (stones > 0)
                         {
-                            actualHoles[i] = 0;
-                            actualWell[0] += GetEnemyHoles()[HoleNumber - 1 - i] + 1;
-                            GetEnemyHoles()[HoleNumber - 1 - i] = 0;
+                            stones--;
+                            actualHoles[i]++;
+                            if (activePlayer == currentPlayerHoles && stones == 0 && actualHoles[i] == 1
+                                && GetEnemyHoles()[HoleNumber - 1 - i] != 0)
+                            {
+                                actualHoles[i] = 0;
+                                actualWell[0] += GetEnemyHoles()[HoleNumber - 1 - i] + 1;
+                                GetEnemyHoles()[HoleNumber - 1 - i] = 0;
+                            }
                         }
                     }
-                }
-                if (activePlayer == currentPlayerHoles && stones > 0)
-                {
-                    actualWell[0]++;
-                    stones--;
-                    if (stones == 0)
+                    if (activePlayer == currentPlayerHoles && stones > 0)
                     {
-                        change = false;
+                        actualWell[0]++;
+                        stones--;
+                        if (stones == 0)
+                        {
+                            change = false;
+                        }
                     }
+                    endOfSection = true;
+                    // Stones expand to enemy
+                    currentPlayerHoles = !currentPlayerHoles;
                 }
-                endOfSection = true;
-                // Stones expand to enemy
-                currentPlayerHoles = !currentPlayerHoles;
             }
-
             return change;
         }
 
@@ -316,7 +382,7 @@ namespace Backend.Game
                 else
                     return Player2Well[0] - Player1Well[0];
             }
-            
+
         }
 
         public bool CheckEnd()
@@ -341,23 +407,24 @@ namespace Backend.Game
             string p2;
             if (player1Turn)
             {
-                p1 = " --> Player 1: " + Player1;
-                p2 = "     Player 2: " + Player2;
+                p1 = " --> Player 1: " + Player1 + "|Depth: " + Hole(Player1Depth);
+                p2 = "     Player 2: " + Player2 + "|Depth: " + Hole(Player2Depth);
             }
             else
             {
-                p1 = "     Player 1: " + Player1;
-                p2 = " --> Player 2: " + Player2;
+                p1 = "     Player 1: " + Player1 + "|Depth: " + Hole(Player1Depth);
+                p2 = " --> Player 2: " + Player2 + "|Depth: " + Hole(Player2Depth);
             }
-
+            MoveNumber++;
             output += $" ________________________________________\n" +
-                      $"|         {p1}           |\n" +
+                      $"|{p1}          |\n" +
                       $"|________________________________________|\n" +
                       $"|      {Hole(Player1Holes[5])} | {Hole(Player1Holes[4])} | {Hole(Player1Holes[3])} | {Hole(Player1Holes[2])} | {Hole(Player1Holes[1])} | {Hole(Player1Holes[0])} |     |\n" +
                       $"| {Hole(Player1Well[0])} -------------------------------  {Hole(Player2Well[0])} |\n" +
                       $"|    | {Hole(Player2Holes[0])} | {Hole(Player2Holes[1])} | {Hole(Player2Holes[2])} | {Hole(Player2Holes[3])} | {Hole(Player2Holes[4])} | {Hole(Player2Holes[5])}       |\n" +
                       $"|________________________________________|\n" +
-                      $"|         {p2}           |\n" +
+                      $"|{p2}          |\n" +
+                      $"| Move number: {Hole(MoveNumber)}                        |\n" +
                       $"|________________________________________|\n";
 
             return output;

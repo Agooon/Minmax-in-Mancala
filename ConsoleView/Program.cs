@@ -9,7 +9,7 @@ namespace ConsoleView
         {
             Console.WriteLine("Hello Mancala!");
 
-            Mancala mancala = new Mancala(3,player1Turn:true);
+            Mancala mancala = new Mancala(5,player1Turn:false);
 
             mancala.StartGame();
         }
