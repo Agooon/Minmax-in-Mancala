@@ -1,6 +1,7 @@
 ﻿using Backend.Game;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,7 +21,7 @@ namespace Backend.Algorithms
             player = player1Turn;
         }
 
-        public int AplhaBeta(Mancala currentInstance, int depth, bool max, bool emptyMove, int alpha, int beta)
+        public double AplhaBeta(Mancala currentInstance, int depth, bool max, bool emptyMove, double alpha, double beta)
         {
             if (currentInstance.CheckEnd() || depth == 0)
                 return currentInstance.BoardPoints(player);
@@ -33,13 +34,14 @@ namespace Backend.Algorithms
             if (!emptyMove)
                 possibleMoves = currentInstance.GetAvaibleHoles();
 
-            int result;
+            double result;
             if (max)
             {
                 foreach (var move in possibleMoves)
                 {
-                    Mancala newInstance = new Mancala(currentInstance);
+                    Mancala newInstance = new Mancala(currentInstance, ref currentInstance.evaluatePoints);
                     bool change = newInstance.Move(move);
+
                     bool maxNext = !max;
                     newInstance.player1Turn = !newInstance.player1Turn;
 
@@ -69,7 +71,7 @@ namespace Backend.Algorithms
             {
                 foreach (var move in possibleMoves)
                 {
-                    Mancala newInstance = new Mancala(currentInstance);
+                    Mancala newInstance = new Mancala(currentInstance, ref currentInstance.evaluatePoints);
                     bool change = newInstance.Move(move);
                     bool maxNext = !max;
                     newInstance.player1Turn = !newInstance.player1Turn;
@@ -100,13 +102,13 @@ namespace Backend.Algorithms
             return bestMove;
         }
 
-        public int MinmaxAlg(Mancala currentInstance, int depth, bool max, bool emptyMove)
+        public double MinmaxAlg(Mancala currentInstance, int depth, bool max, bool emptyMove)
         {
             if (currentInstance.CheckEnd() || depth == 0)
                 return currentInstance.BoardPoints(player);
 
             int bestMove = 0;
-            int score;
+            double score;
             if (max)
                 score = int.MinValue;
             else
@@ -117,12 +119,12 @@ namespace Backend.Algorithms
             if (!emptyMove)
                 possibleMoves = currentInstance.GetAvaibleHoles();
 
-            int result;
+            double result;
             if (max)
             {
                 foreach (var move in possibleMoves)
                 {
-                    Mancala newInstance = new Mancala(currentInstance);
+                    Mancala newInstance = new Mancala(currentInstance, ref currentInstance.evaluatePoints);
                     bool change = newInstance.Move(move);
                     bool maxNext = !max;
                     newInstance.player1Turn = !newInstance.player1Turn;
@@ -150,7 +152,7 @@ namespace Backend.Algorithms
             {
                 foreach (var move in possibleMoves)
                 {
-                    Mancala newInstance = new Mancala(currentInstance);
+                    Mancala newInstance = new Mancala(currentInstance, ref currentInstance.evaluatePoints);
                     bool change = newInstance.Move(move);
                     bool maxNext = !max;
                     newInstance.player1Turn = !newInstance.player1Turn;
@@ -165,8 +167,6 @@ namespace Backend.Algorithms
                     if (!emptyMove)
                         result = MinmaxAlg(newInstance, depth - 1, maxNext, emptyMove);
 
-                    //if (result < 0 && newInstance.CheckEnd() && depth != ChosenDepth)
-                    //    return int.MinValue;
                     if (result < score)
                     {
                         bestMove = move;

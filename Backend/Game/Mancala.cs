@@ -2,6 +2,7 @@
 using Backend.Utility;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,31 +17,37 @@ namespace Backend.Game
     }
     public class Mancala
     {
+        public IEvaluatePoints evaluatePoints;
+
+        public Stopwatch Sw { get; set; } = new Stopwatch();
+        public List<TimeSpan> TimesOfPlayer1 { get; set; }
+        public int MovesOfPlayer1 { get; set; } = 0;
+        public List<TimeSpan> TimesOfPlayer2 { get; set; }
+        public int MovesOfPlayer2 { get; set; } = 0;
 
         public const int HoleNumber = 6;
         private bool firstMove = true;
         public bool player1Turn { get; set; }
-
         // Player 1 values
         private readonly string Player1;
         private readonly string Player2;
-        public int Player1Depth { get; set; } = 16;
-        public int Player2Depth { get; set; } = 16;
+        public int Player1Depth { get; set; } = 8;
+        public int Player2Depth { get; set; } = 8;
         public int MoveNumber { get; set; } = 0;
 
 
         // Holes
-        private int[] Player1Holes = new int[6]
+        public int[] Player1Holes = new int[6]
         {
             4,4,4,4,4,4
         };
-        private int[] Player1Well = new int[1] { 0 };
+        public int[] Player1Well = new int[1] { 0 };
 
-        private int[] Player2Holes = new int[6]
+        public int[] Player2Holes = new int[6]
         {
             4,4,4,4,4,4
         };
-        private int[] Player2Well = new int[1] { 0 };
+        public int[] Player2Well = new int[1] { 0 };
 
 
         //private int[] Player1Holes = new int[6]
@@ -62,7 +69,7 @@ namespace Backend.Game
         // gameMode = 6 - Ai_AB vs Ai
 
         // For deepCopy
-        public Mancala(Mancala mancala)
+        public Mancala(Mancala mancala, ref IEvaluatePoints eveluatePoints)
         {
             firstMove = mancala.firstMove;
             player1Turn = mancala.player1Turn;
@@ -74,9 +81,20 @@ namespace Backend.Game
             Player2 = mancala.Player2;
             Player2Holes = mancala.Player2Holes.Select(x => x).ToArray();
             Player2Well = mancala.Player2Well.Select(x => x).ToArray();
+            this.evaluatePoints = eveluatePoints;
         }
-        public Mancala(int gameMode = 1, bool player1Turn = true)
+
+        public Mancala(ref IEvaluatePoints eveluatePoints, int gameMode = 1, bool player1Turn = true,
+            int player1Depth = 5, int player2Depth = 5)
         {
+            evaluatePoints = eveluatePoints;
+
+            TimesOfPlayer1 = new List<TimeSpan>();
+            TimesOfPlayer2 = new List<TimeSpan>();
+
+            Player1Depth = player1Depth;
+            Player2Depth = player2Depth;
+            this.evaluatePoints = eveluatePoints;
             switch (gameMode)
             {
                 case 1:
@@ -161,42 +179,71 @@ namespace Backend.Game
         {
             if (emptyMove)
                 return -1;
+
             if (player1Turn)
             {
+                MovesOfPlayer1++;
                 if (Player1 == PlayerType.Human)
-                    return GetHumanMove();
+                {
+                    Sw.Restart();
+                    int humanMove = GetHumanMove();
+                    TimeSpan timeSpan = Sw.Elapsed;
+                    TimesOfPlayer1.Add(timeSpan);
+                    Console.WriteLine("Human moved: " + humanMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    return humanMove;
+                }
                 else if (Player1 == PlayerType.Ai)
                 {
+                    Sw.Restart();
                     int aiMove = GetAiMove();
-                    Console.WriteLine("Ai moved: " + aiMove);
+                    TimeSpan timeSpan = Sw.Elapsed;
+                    TimesOfPlayer1.Add(timeSpan);
+                    Console.WriteLine("Ai moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
                 // Aplha-Beta
                 else
                 {
+                    Sw.Restart();
                     int aiMove = GetAiMoveAB();
-
-                    Console.WriteLine("Ai_AB moved: " + aiMove);
+                    TimeSpan timeSpan = Sw.Elapsed;
+                    TimesOfPlayer1.Add(timeSpan);
+                    Console.WriteLine("Ai_AB moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
             }
             else
             {
+                MovesOfPlayer2++;
                 if (Player2 == PlayerType.Human)
-                    return GetHumanMove();
+                {
+
+                    Sw.Restart();
+                    int humanMove = GetHumanMove();
+                    TimeSpan timeSpan = Sw.Elapsed;
+                    TimesOfPlayer2.Add(timeSpan);
+                    Console.WriteLine("Human moved: " + humanMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    return humanMove;
+                }
                 else if (Player2 == PlayerType.Ai)
                 {
+                    Sw.Restart();
                     int aiMove = GetAiMove();
+                    TimeSpan timeSpan = Sw.Elapsed;
+                    TimesOfPlayer2.Add(timeSpan);
 
-                    Console.WriteLine("Ai moved: " + aiMove);
+                    Console.WriteLine("Ai moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
                 // Aplha-Beta
                 else
                 {
+                    Sw.Restart();
                     int aiMove = GetAiMoveAB();
+                    TimeSpan timeSpan = Sw.Elapsed;
+                    TimesOfPlayer2.Add(timeSpan);
 
-                    Console.WriteLine("Ai_AB moved: " + aiMove);
+                    Console.WriteLine("Ai_AB moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
             }
@@ -212,12 +259,12 @@ namespace Backend.Game
             if (player1Turn)
             {
                 Minmax minmax = new Minmax(player1Turn, Player1Depth);
-                return minmax.MinmaxAlg(this, Player1Depth, true, false);
+                return (int)minmax.MinmaxAlg(this, Player1Depth, true, false);
             }
             else
             {
                 Minmax minmax = new Minmax(player1Turn, Player2Depth);
-                return minmax.MinmaxAlg(this, Player2Depth, true, false);
+                return (int)minmax.MinmaxAlg(this, Player2Depth, true, false);
             }
         }
 
@@ -231,12 +278,12 @@ namespace Backend.Game
             if (player1Turn)
             {
                 Minmax minmax = new Minmax(player1Turn, Player1Depth);
-                return minmax.AplhaBeta(this, Player1Depth, true, false, int.MinValue, int.MaxValue);
+                return (int)minmax.AplhaBeta(this, Player1Depth, true, false, int.MinValue, int.MaxValue);
             }
             else
             {
                 Minmax minmax = new Minmax(player1Turn, Player2Depth);
-                return minmax.AplhaBeta(this, Player2Depth, true, false, int.MinValue, int.MaxValue);
+                return (int)minmax.AplhaBeta(this, Player2Depth, true, false, int.MinValue, int.MaxValue);
             }
         }
 
@@ -366,22 +413,9 @@ namespace Backend.Game
             else
                 return ref Player1Holes;
         }
-        public int BoardPoints(bool player1)
+        public double BoardPoints(bool player1)
         {
-            if (CheckEnd())
-            {
-                if (player1)
-                    return Player1Well[0] + Player1Holes.Sum(x => x) - Player2Well[0] + Player2Holes.Sum(x => x);
-                else
-                    return Player2Well[0] + Player2Holes.Sum(x => x) - Player1Well[0] + Player1Holes.Sum(x => x);
-            }
-            else
-            {
-                if (player1)
-                    return Player1Well[0] - Player2Well[0];
-                else
-                    return Player2Well[0] - Player1Well[0];
-            }
+            return evaluatePoints.GetPoints(this, player1);
 
         }
 
