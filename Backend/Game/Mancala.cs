@@ -17,7 +17,11 @@ namespace Backend.Game
     }
     public class Mancala
     {
-        public IEvaluatePoints evaluatePoints;
+
+        public bool PrintText { get; set; }
+
+        public IEvaluatePoints evaluatePointsP1;
+        public IEvaluatePoints evaluatePointsP2;
 
         public Stopwatch Sw { get; set; } = new Stopwatch();
         public List<TimeSpan> TimesOfPlayer1 { get; set; }
@@ -37,6 +41,20 @@ namespace Backend.Game
 
 
         // Holes
+        //public int[] Player1Holes = new int[6]
+        //{
+        //    0,1,0,1,0,0
+        //};
+        //public int[] Player1Well = new int[1] { 28 };
+
+        //public int[] Player2Holes = new int[6]
+        //{
+        //    0,0,0,2,0,0
+        //};
+        //public int[] Player2Well = new int[1] { 16 };
+
+
+        // Holes
         public int[] Player1Holes = new int[6]
         {
             4,4,4,4,4,4
@@ -50,17 +68,6 @@ namespace Backend.Game
         public int[] Player2Well = new int[1] { 0 };
 
 
-        //private int[] Player1Holes = new int[6]
-        //{
-        //    4,4,4,4,4,4
-        //};
-        //private int[] Player1Well = new int[1] { 0 };
-        //private int[] Player2Holes = new int[6]
-        //{
-        //    4,4,4,4,4,4
-        //};
-        //private int[] Player2Well = new int[1] { 0 };
-
         // gameMode = 1 - H vs H
         // gameMode = 2 - H vs Ai
         // gameMode = 3 - Ai vs Ai
@@ -69,7 +76,7 @@ namespace Backend.Game
         // gameMode = 6 - Ai_AB vs Ai
 
         // For deepCopy
-        public Mancala(Mancala mancala, ref IEvaluatePoints eveluatePoints)
+        public Mancala(Mancala mancala)
         {
             firstMove = mancala.firstMove;
             player1Turn = mancala.player1Turn;
@@ -81,20 +88,25 @@ namespace Backend.Game
             Player2 = mancala.Player2;
             Player2Holes = mancala.Player2Holes.Select(x => x).ToArray();
             Player2Well = mancala.Player2Well.Select(x => x).ToArray();
-            this.evaluatePoints = eveluatePoints;
+
+            this.evaluatePointsP1 = mancala.evaluatePointsP1;
+            this.evaluatePointsP2 = mancala.evaluatePointsP2;
+            Player1Depth = mancala.Player1Depth;
+            Player2Depth = mancala.Player2Depth;
         }
 
-        public Mancala(ref IEvaluatePoints eveluatePoints, int gameMode = 1, bool player1Turn = true,
+        public Mancala(ref IEvaluatePoints evaluatePointsP1, ref IEvaluatePoints evaluatePointsP2,
+            int gameMode = 1, bool player1Turn = true,
             int player1Depth = 5, int player2Depth = 5)
         {
-            evaluatePoints = eveluatePoints;
+            this.evaluatePointsP1 = evaluatePointsP1;
+            this.evaluatePointsP2 = evaluatePointsP2;
 
             TimesOfPlayer1 = new List<TimeSpan>();
             TimesOfPlayer2 = new List<TimeSpan>();
 
             Player1Depth = player1Depth;
             Player2Depth = player2Depth;
-            this.evaluatePoints = eveluatePoints;
             switch (gameMode)
             {
                 case 1:
@@ -128,14 +140,17 @@ namespace Backend.Game
 
         public void StartGame()
         {
-            firstMove = false;
+            firstMove = true;
             bool emptyMove = false;
             while (true)
             {
-                if (!emptyMove)
-                    Console.WriteLine(ShowGameState());
-                else
-                    Console.WriteLine("SKIP");
+                if (PrintText)
+                {
+                    if (!emptyMove)
+                        Console.WriteLine(ShowGameState());
+                    else
+                        Console.WriteLine("SKIP");
+                }
                 int playerMove = GetPlayerMove(emptyMove);
                 bool change = Move(playerMove);
                 player1Turn = !player1Turn;
@@ -189,7 +204,8 @@ namespace Backend.Game
                     int humanMove = GetHumanMove();
                     TimeSpan timeSpan = Sw.Elapsed;
                     TimesOfPlayer1.Add(timeSpan);
-                    Console.WriteLine("Human moved: " + humanMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    if(PrintText)
+                        Console.WriteLine("Human moved: " + humanMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return humanMove;
                 }
                 else if (Player1 == PlayerType.Ai)
@@ -198,7 +214,8 @@ namespace Backend.Game
                     int aiMove = GetAiMove();
                     TimeSpan timeSpan = Sw.Elapsed;
                     TimesOfPlayer1.Add(timeSpan);
-                    Console.WriteLine("Ai moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    if (PrintText)
+                        Console.WriteLine("Ai moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
                 // Aplha-Beta
@@ -208,7 +225,8 @@ namespace Backend.Game
                     int aiMove = GetAiMoveAB();
                     TimeSpan timeSpan = Sw.Elapsed;
                     TimesOfPlayer1.Add(timeSpan);
-                    Console.WriteLine("Ai_AB moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    if (PrintText)
+                        Console.WriteLine("Ai_AB moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
             }
@@ -222,7 +240,8 @@ namespace Backend.Game
                     int humanMove = GetHumanMove();
                     TimeSpan timeSpan = Sw.Elapsed;
                     TimesOfPlayer2.Add(timeSpan);
-                    Console.WriteLine("Human moved: " + humanMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    if (PrintText)
+                        Console.WriteLine("Human moved: " + humanMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return humanMove;
                 }
                 else if (Player2 == PlayerType.Ai)
@@ -232,7 +251,8 @@ namespace Backend.Game
                     TimeSpan timeSpan = Sw.Elapsed;
                     TimesOfPlayer2.Add(timeSpan);
 
-                    Console.WriteLine("Ai moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    if (PrintText)
+                        Console.WriteLine("Ai moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
                 // Aplha-Beta
@@ -243,7 +263,8 @@ namespace Backend.Game
                     TimeSpan timeSpan = Sw.Elapsed;
                     TimesOfPlayer2.Add(timeSpan);
 
-                    Console.WriteLine("Ai_AB moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
+                    if (PrintText)
+                        Console.WriteLine("Ai_AB moved: " + aiMove + "\n Time: " + timeSpan.TotalMilliseconds);
                     return aiMove;
                 }
             }
@@ -278,12 +299,12 @@ namespace Backend.Game
             if (player1Turn)
             {
                 Minmax minmax = new Minmax(player1Turn, Player1Depth);
-                return (int)minmax.AplhaBeta(this, Player1Depth, true, false, int.MinValue, int.MaxValue);
+                return (int)minmax.AplhaBeta(this, Player2Depth, true, false, double.MinValue, double.MaxValue);
             }
             else
             {
                 Minmax minmax = new Minmax(player1Turn, Player2Depth);
-                return (int)minmax.AplhaBeta(this, Player2Depth, true, false, int.MinValue, int.MaxValue);
+                return (int)minmax.AplhaBeta(this, Player1Depth, true, false, double.MinValue, double.MaxValue);
             }
         }
 
@@ -402,21 +423,23 @@ namespace Backend.Game
                         possibleMoves.Add(i + 1);
                 }
 
-
             return possibleMoves.ToArray();
+
         }
 
-        private ref int[] GetEnemyHoles()
+        private int[] GetEnemyHoles()
         {
             if (player1Turn)
-                return ref Player2Holes;
+                return Player2Holes;
             else
-                return ref Player1Holes;
+                return Player1Holes;
         }
         public double BoardPoints(bool player1)
         {
-            return evaluatePoints.GetPoints(this, player1);
-
+            if (player1)
+                return evaluatePointsP1.GetPoints(this, player1);
+            else
+                return evaluatePointsP2.GetPoints(this, player1);
         }
 
         public bool CheckEnd()
